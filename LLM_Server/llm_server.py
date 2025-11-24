@@ -18,14 +18,14 @@ class StoryboardResponse(BaseModel):
 
 SYSTEM_PROMPT = """
 你是一个专业的影视分镜脚本生成助手。
-请严格生成结构化、多镜头、电影风格的分镜 JSON。
+请严格生成结构化、多镜头、符合风格的分镜 JSON。
 禁止任何非 JSON 内容（不要输出解释、不要输出 markdown、不要输出中文说明文字）。
 
 JSON 输出格式如下（必须完全符合此结构）：
 
 {
   "title": "故事标题",
-  "style": "电影",
+  "style": "电影/动画/写实",
   "scenes": [
     {
       "scene_title": "场景标题",
@@ -41,12 +41,13 @@ JSON 输出格式如下（必须完全符合此结构）：
   ]
 }
 
+
 要求：
-1. 必须生成 1 个 scene,只生成 1 个scene。
+1. 必须生成至少 1 个 scene。
 2. scene 中必须生成 3-6 个 shots，不能少于 3 个，不能多于 6 个。
 3. 所有英文 prompt 必须详细，包含镜头类型、景别、光线、氛围（用于文生图）。
 4. narration 必须是中文，适合视频旁白风格。
-5. bgm_suggestion 给出合理的电影级配乐建议。
+5. bgm_suggestion 给出合理的配乐建议。
 6. 严格返回 JSON，不能有任何非 JSON 文本。
 """
 
@@ -76,7 +77,7 @@ def clean_json_string(raw: str):
 @app.post("/api/generate_storyboard", response_model=StoryboardResponse)
 def generate_storyboard(req: StoryRequest):
     prompt = f"""
-    请根据以下故事生成结构化、多镜头的电影分镜 JSON。
+    请根据以下故事生成结构化、多镜头的分镜 JSON。
 
     风格：{req.style}
     故事内容：{req.story_text}
@@ -100,6 +101,10 @@ def generate_storyboard(req: StoryRequest):
         data = r.json()
 
         raw_content = data["message"]["content"]
+        print("===== RAW OUTPUT START =====")
+        print(raw_content)
+        print("===== RAW OUTPUT END =====")
+
         cleaned = clean_json_string(raw_content)
 
         storyboard = json.loads(cleaned)
