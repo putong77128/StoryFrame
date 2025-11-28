@@ -30,20 +30,53 @@ class ImageGenerator:
         image.save(filepath)
         return filepath
 
+    def __enter__(self):
+        """进入上下文"""
+        return self
 
-def build_full_prompt(scene: dict) -> str:
-    parts = [scene.get("narration", "").strip()]
-    prompt_dict = scene.get("prompt", {})
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """退出上下文时调用此方法进行清理"""
+        self.cleanup()
 
-    for key in ["role", "environment", "light"]:
-        value = prompt_dict.get(key, "").strip()
-        if value and value.lower() not in parts[-1].lower():
-            parts.append(value)
+    def cleanup(self):
+        """手动清理资源"""
+        if hasattr(self, 'pipe'):
+            del self.pipe
+            import torch
+            torch.cuda.empty_cache()
 
-    style = prompt_dict.get("style", "Studio Ghibli animation style").strip()
-    parts += [style, "masterpiece, best quality, high detail"]
 
-    return ", ".join(filter(None, parts))
+# def build_full_prompt(scene: dict) -> str:
+#     parts = [scene.get("narration", "").strip()]
+#     prompt_dict = scene.get("prompt", {})
+
+#     for key in ["role", "environment", "light"]:
+#         value = prompt_dict.get(key, "").strip()
+#         if value and value.lower() not in parts[-1].lower():
+#             parts.append(value)
+
+#     style = prompt_dict.get("style", "Studio Ghibli animation style").strip()
+#     parts += [style, "masterpiece, best quality, high detail"]
+
+#     return ", ".join(filter(None, parts))
+def build_full_prompt(prompt_dict: dict) -> str:
+    parts = []
+    for key, value in prompt_dict.items():
+        if isinstance(value, str):
+            cleaned = value.strip()
+            if cleaned:
+                parts.append(f"{key}: {cleaned}")
+        elif isinstance(value, (list, tuple)):
+            # list
+            cleaned_items = [str(item).strip() for item in value if str(item).strip()]
+            if cleaned_items:
+                parts.append(f"{key}: {', '.join(cleaned_items)}")
+        else:
+            # 其他类型
+            cleaned = str(value).strip()
+            if cleaned:
+                parts.append(f"{key}: {cleaned}")
+    return "; ".join(parts)
 
 
 if __name__ == "__main__":
