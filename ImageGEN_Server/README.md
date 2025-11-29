@@ -1,1 +1,1 @@
-image generator
+Linux环境下模型文件需要放到ImageGEN_Server/models

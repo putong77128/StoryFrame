@@ -1,0 +1,13 @@
+# pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu126
+
+torch
+regex>2019.12.17
+diffusers>=0.25.0
+transformers>=4.35.0
+accelerate>=0.25.0
+safetensors>=0.3.0
+pillow>=9.0.0,<11.0.0
+pydantic==1.10.18
+fastapi==0.95.2
+uvicorn[standard]>=0.22.0,<0.30.0
+requests>=2.25.0
