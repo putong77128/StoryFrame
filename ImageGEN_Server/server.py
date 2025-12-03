@@ -46,6 +46,30 @@ class GenerateResponse(PydanticBaseModel):
     image_paths: List[str]
 
 
+class EditSceneRequest(PydanticBaseModel):
+    task_id: str
+    storyboard: List[Scene]
+    scene_index: int 
+
+
+class EditSceneResponse(PydanticBaseModel):
+    task_id: str
+    scene_index: int
+    filename: str
+
+
+def _remove_existing_scene_files(task_dir: Path, index: int):
+    try:
+        for p in task_dir.glob(f"{index:03d}_*.png"):
+            try:
+                p.unlink()
+                logger.info(f"Removed old scene image: {p.name}")
+            except Exception as e:
+                logger.warning(f"Failed to remove {p}: {e}")
+    except Exception as e:
+        logger.warning(f"Error while removing existing files for index {index}: {e}")
+
+
 @app.post("/generate/images", response_model=GenerateResponse)
 async def generate_images(request: Request, req: GenerateRequest):
     if generator is None:
@@ -69,6 +93,43 @@ async def generate_images(request: Request, req: GenerateRequest):
 
     except Exception as e:
         error_msg = f"[{req.task_id}] Image generation error: {str(e)}"
+        logger.error(error_msg)
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=error_msg)
+
+
+@app.post("/generate/images/edit", response_model=EditSceneResponse)
+async def edit_single_scene(request: Request, req: EditSceneRequest):
+    if generator is None:
+        raise HTTPException(status_code=500, detail="Image generator init error")
+
+    client_ip = request.client.host or "unknown"
+    logger.info(f"[{req.task_id}] Edit request from {client_ip} for scene {req.scene_index}")
+
+    task_dir = TASKS_DIR / req.task_id
+    task_dir.mkdir(parents=True, exist_ok=True)
+
+    # validate scene_index
+    if req.scene_index < 1 or req.scene_index > len(req.storyboard):
+        raise HTTPException(status_code=400, detail=f"scene_index out of range (1..{len(req.storyboard)})")
+
+    try:
+        scene = req.storyboard[req.scene_index - 1]
+        full_prompt = build_full_prompt(scene.dict())
+        logger.info(f"Full prompt for scene {req.scene_index}: {full_prompt[:200]}...")
+
+        # Remove old files for that index to keep only the new one
+        _remove_existing_scene_files(task_dir, req.scene_index)
+
+        # Generate and save using the scene_index as counter so filenames stay in order
+        filepath = generator.generate(prompt=full_prompt, output_dir=str(task_dir), counter=req.scene_index,
+                                      width=req.width, height=req.height)
+        filename = Path(filepath).name
+        logger.info(f"[{req.task_id}] Scene {req.scene_index} regenerated: {filename}")
+        return EditSceneResponse(task_id=req.task_id, scene_index=req.scene_index, filename=filename)
+
+    except Exception as e:
+        error_msg = f"[{req.task_id}] Edit scene error: {str(e)}"
         logger.error(error_msg)
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=error_msg)
