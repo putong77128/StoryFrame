@@ -77,7 +77,7 @@ class StoryboardGenerator:
                 "role": "...",
                 "environment": "...",
                 "light": "...",
-                "style": "Studio Ghibli animation style"
+                "style": "..."
               }}
             }}
           ]
